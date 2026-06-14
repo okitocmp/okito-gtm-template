@@ -1,0 +1,8 @@
+homepage: "https://okito.com"
+documentation: "https://app.okito.com"
+versions:
+  # Replace the sha below with the full commit SHA of your first commit
+  # (the commit that contains template.tpl, metadata.yaml and LICENSE).
+  # On GitHub: open the commit, click the clipboard icon to copy the full SHA.
+  - sha: REPLACE_WITH_FIRST_COMMIT_SHA
+    changeNotes: Initial release.
