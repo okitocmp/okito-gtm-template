@@ -455,7 +455,7 @@ ___TESTS___
 scenarios:
 - name: Okito CDN script is injected with the correct URL
   code: |-
-    // Mock data — gerçek website key gerekmez, test verisi.
+    // Test data.
     const mockData = {
       websiteKey: 'okito-abc123-def456-d',
       waitForUpdate: 500,
