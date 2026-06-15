@@ -1,5 +1,5 @@
 homepage: "https://okito.com"
 documentation: "https://app.okito.com"
 versions:
-  - sha: b859f7622f5f3a2c36f9a25aeeec3fdd7ece8fbb
+  - sha: 67f2aa24866f6a86506a9c224e0559c815673351
     changeNotes: Initial release.
