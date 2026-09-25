@@ -1,50 +1,38 @@
-# Okito CMP — Google Tag Manager Template
+# Okito CMP — Google Tag Manager Community Template
 
-Use [Okito](https://okito.com) with Google Tag Manager.
+Google recommends that CMPs publish a consent mode template in the GTM
+Community Template Gallery
+(https://developers.google.com/tag-platform/security/concepts/cmp). This
+folder is that template.
 
-This template loads the Okito consent banner and sets the **Google Consent Mode v2**
-default state (everything denied except functionality and security) before your other
-tags fire. When a visitor makes a choice on the Okito banner, Okito updates consent so
-your Google tags (GA4, Google Ads, etc.) respect it.
+What the tag does (same behaviour as the Okito CDN banner and head snippet):
 
-## What it does
+- Opt-in regions (EEA, UK, Switzerland, Türkiye, Brazil and similar; the US
+  unless "US opt-out" is ticked) start **denied**, `wait_for_update` 500 ms.
+- Everywhere else starts **granted**, `wait_for_update` 0, so Data
+  Transmission Controls / Global Consent Defaults applied regardless of region
+  do not remove measurement ("Measurement off until a choice" → denied
+  everywhere).
+- Global Privacy Control → denied. GTM's sandbox cannot read
+  `navigator.globalPrivacyControl`, so the Okito CDN script sends the denied
+  `consent update` right after it loads.
+- Sets `developer_id.dZGJiMm` (Okito's Google CMP developer ID),
+  `ads_data_redaction` and, optionally, `url_passthrough`.
+- Loads `https://cdn.okito.com/js/<website key>`, which shows the banner (or
+  not, per the site settings) and sends `consent update` / IAB TCF signals.
 
-1. Sets the Consent Mode v2 default state (privacy-first: all denied except
-   `functionality_storage` and `security_storage`), with a configurable
-   `wait_for_update` (default 500 ms).
-2. Sets `ads_data_redaction` and `url_passthrough` (both on by default).
-3. Loads the Okito CDN script: `https://cdn.okito.com/js/{websiteKey}`.
+Customers add the tag with the **Consent Initialization - All Pages** trigger
+and must not also paste the Okito embed script.
 
-Okito's script renders the banner and, on a visitor's choice, calls
-`gtag('consent', 'update', ...)`, which Tag Manager consumes.
+## Publishing a new version
 
-## Setup
+The template is published from https://github.com/okitocmp/okito-gtm-template
+(Gallery: `okitocmp/okito-gtm-template`). This folder is the source of truth.
 
-1. In Google Tag Manager, add the **Okito CMP** tag.
-2. Enter your **Website Key** (from your dashboard at
-   [app.okito.com](https://app.okito.com)). It looks like `okito-XXXXXX-XXXXXX-d`.
-3. Set the trigger to **Consent Initialization - All Pages** so it runs before
-   other tags.
-4. (Optional) Open **Advanced settings** to change `wait_for_update`, ad data
-   redaction, URL passthrough, or to add a Google Developer ID.
-5. Save and publish your container.
-
-## Fields
-
-| Field | Required | Default | Description |
-|-------|----------|---------|-------------|
-| Website Key | Yes | — | Your Okito Website Key (`okito-XXXXXX-XXXXXX-d`). |
-| Wait for update | No | 500 | Milliseconds to wait for a consent update. |
-| Redact ads data | No | On | Remove ad identifiers while advertising consent is denied. |
-| Pass ad click info through URLs | No | On | Keep identifiers (e.g. gclid) in internal links pre-consent. |
-| Google Developer ID | No | dZGJiMm | Okito's Consent Mode attribution ID. |
-
-## Links
-
-- Website: https://okito.com
-- Dashboard: https://app.okito.com
-- Support: support@okito.com
-
-## License
-
-[Apache License 2.0](./LICENSE)
+1. Import `template.tpl` in a GTM workspace (Templates → New → ⋮ → Import),
+   run the tests in the template editor, and try it on the review site.
+2. Copy `template.tpl` to the repository root and commit.
+3. In `metadata.yaml`, replace the placeholder `sha` of the newest version
+   with that commit's full sha, copy the file to the repository and commit.
+   The Gallery picks the new version up automatically; containers using the
+   template see an update notice.

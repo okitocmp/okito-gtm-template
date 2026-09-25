@@ -1,6 +1,8 @@
 homepage: "https://okito.com"
 documentation: "https://app.okito.com"
 versions:
+  - sha: e7151a1380f9a5f1ed53e244813c872f559bdc39
+    changeNotes: Region-specific defaults table (override the default consent state per country or ISO 3166-2 region).
   - sha: bda564c9c513e2f77f389b286ca91358236477d9
     changeNotes: Region-aware Consent Mode defaults (opt-in regions denied, elsewhere granted), Global Privacy Control support, "where consent is not required" and US opt-out settings.
   - sha: 67f2aa24866f6a86506a9c224e0559c815673351
