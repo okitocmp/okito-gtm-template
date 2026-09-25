@@ -76,6 +76,90 @@ ___TEMPLATE_PARAMETERS___
     "help": "Leave unticked for the GDPR template: US visitors then start denied like other opt-in regions."
   },
   {
+    "type": "SIMPLE_TABLE",
+    "name": "regionDefaults",
+    "displayName": "Region-specific defaults (optional)",
+    "help": "Override the default consent state for specific regions. Region: ISO 3166-1 country codes or ISO 3166-2 subdivisions, comma separated (e.g. DE,FR or US-CA). A region listed here replaces the built-in default for that region. functionality_storage and security_storage stay granted.",
+    "simpleTableColumns": [
+      {
+        "defaultValue": "",
+        "displayName": "Region",
+        "name": "region",
+        "type": "TEXT",
+        "valueValidators": [
+          {
+            "type": "NON_EMPTY"
+          }
+        ]
+      },
+      {
+        "defaultValue": "denied",
+        "displayName": "ad_storage",
+        "name": "ad_storage",
+        "type": "SELECT",
+        "selectItems": [
+          {
+            "value": "denied",
+            "displayValue": "denied"
+          },
+          {
+            "value": "granted",
+            "displayValue": "granted"
+          }
+        ]
+      },
+      {
+        "defaultValue": "denied",
+        "displayName": "ad_user_data",
+        "name": "ad_user_data",
+        "type": "SELECT",
+        "selectItems": [
+          {
+            "value": "denied",
+            "displayValue": "denied"
+          },
+          {
+            "value": "granted",
+            "displayValue": "granted"
+          }
+        ]
+      },
+      {
+        "defaultValue": "denied",
+        "displayName": "ad_personalization",
+        "name": "ad_personalization",
+        "type": "SELECT",
+        "selectItems": [
+          {
+            "value": "denied",
+            "displayValue": "denied"
+          },
+          {
+            "value": "granted",
+            "displayValue": "granted"
+          }
+        ]
+      },
+      {
+        "defaultValue": "denied",
+        "displayName": "analytics_storage",
+        "name": "analytics_storage",
+        "type": "SELECT",
+        "selectItems": [
+          {
+            "value": "denied",
+            "displayValue": "denied"
+          },
+          {
+            "value": "granted",
+            "displayValue": "granted"
+          }
+        ]
+      }
+    ],
+    "newRowButtonText": "Add region"
+  },
+  {
     "type": "GROUP",
     "name": "advancedSettings",
     "displayName": "Advanced settings",
@@ -136,6 +220,7 @@ const setDefaultConsentState = require('setDefaultConsentState');
 const gtagSet = require('gtagSet');
 const encodeUriComponent = require('encodeUriComponent');
 const makeNumber = require('makeNumber');
+const makeString = require('makeString');
 
 const websiteKey = data.websiteKey;
 const waitForUpdate = data.waitForUpdate ? makeNumber(data.waitForUpdate) : 500;
@@ -176,8 +261,24 @@ const consentState = (value, wait, region) => {
 
 const keepMeasurement = data.notRequiredMode !== 'denied';
 
+// Publisher's region-specific defaults (template table).
+const isConsentValue = (v) => v === 'granted' || v === 'denied';
+const regionRows = [];
+const customRegions = [];
+(data.regionDefaults || []).forEach((row) => {
+  const regions = [];
+  makeString(row.region || '').split(',').forEach((part) => {
+    const code = part.trim().toUpperCase();
+    if (code) regions.push(code);
+  });
+  if (regions.length === 0) return;
+  regions.forEach((code) => customRegions.push(code));
+  regionRows.push({ row: row, regions: regions });
+});
+const notCustom = (code) => customRegions.indexOf(code) === -1;
+
 if (keepMeasurement) {
-  const regions = data.usOptOut ? OPT_IN_REGIONS : OPT_IN_REGIONS.concat(['US']);
+  const regions = (data.usOptOut ? OPT_IN_REGIONS : OPT_IN_REGIONS.concat(['US'])).filter(notCustom);
   // Opt-in regions: denied until the visitor decides in the Okito banner.
   setDefaultConsentState(consentState('denied', waitForUpdate, regions));
   // Everywhere else: granted, so Data Transmission Controls / Global Consent
@@ -188,6 +289,24 @@ if (keepMeasurement) {
   // "Measurement off until a choice": denied everywhere.
   setDefaultConsentState(consentState('denied', waitForUpdate));
 }
+
+regionRows.forEach((entry) => {
+  const row = entry.row;
+  const state = {
+    ad_storage: isConsentValue(row.ad_storage) ? row.ad_storage : 'denied',
+    ad_user_data: isConsentValue(row.ad_user_data) ? row.ad_user_data : 'denied',
+    ad_personalization: isConsentValue(row.ad_personalization) ? row.ad_personalization : 'denied',
+    analytics_storage: isConsentValue(row.analytics_storage) ? row.analytics_storage : 'denied',
+    functionality_storage: 'granted',
+    security_storage: 'granted',
+    region: entry.regions
+  };
+  const allGranted = state.ad_storage === 'granted' && state.ad_user_data === 'granted' &&
+    state.ad_personalization === 'granted' && state.analytics_storage === 'granted';
+  state.personalization_storage = state.ad_personalization;
+  state.wait_for_update = allGranted ? 0 : waitForUpdate;
+  setDefaultConsentState(state);
+});
 
 // Load the Okito CMP script. It renders the banner (where required) and, on a
 // visitor's choice, calls gtag('consent','update', ...) which Tag Manager consumes.
@@ -617,6 +736,37 @@ scenarios:
     assertThat(states[0].region).isUndefined();
     assertThat(states[0].ad_storage).isEqualTo('denied');
     assertThat(states[0].wait_for_update).isEqualTo(500);
+- name: Region-specific defaults override the built-in regions
+  code: |-
+    const mockData = {
+      websiteKey: 'okito-abc123-def456-d',
+      notRequiredMode: 'granted',
+      usOptOut: false,
+      waitForUpdate: 500,
+      adsDataRedaction: true,
+      urlPassthrough: true,
+      developerId: 'dZGJiMm',
+      regionDefaults: [
+        { region: 'de, us-ca', ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'denied', analytics_storage: 'granted' }
+      ]
+    };
+
+    const states = [];
+    mock('setDefaultConsentState', function(state) { states.push(state); });
+    mock('gtagSet', function(settings) {});
+    mock('queryPermission', function(permission, url) { return true; });
+    mock('injectScript', function(url, onSuccess, onFailure) { onSuccess(); });
+
+    runCode(mockData);
+
+    assertThat(states.length).isEqualTo(3);
+    assertThat(states[0].region).doesNotContain('DE');
+    assertThat(states[0].region).contains('FR');
+    assertThat(states[2].region).isEqualTo(['DE', 'US-CA']);
+    assertThat(states[2].ad_storage).isEqualTo('granted');
+    assertThat(states[2].ad_personalization).isEqualTo('denied');
+    assertThat(states[2].analytics_storage).isEqualTo('granted');
+    assertThat(states[2].wait_for_update).isEqualTo(500);
 - name: Developer ID and ads settings are sent via gtagSet
   code: |-
     const mockData = {
