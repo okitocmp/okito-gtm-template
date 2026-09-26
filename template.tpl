@@ -195,8 +195,8 @@ ___TEMPLATE_PARAMETERS___
         "name": "urlPassthrough",
         "checkboxText": "Pass ad click information through URLs",
         "simpleValueType": true,
-        "defaultValue": true,
-        "help": "Keeps advertising identifiers (such as gclid) in internal link URLs while waiting for consent."
+        "defaultValue": false,
+        "help": "Consent mode url_passthrough. When ad_storage is denied, ad click information (such as gclid and dclid) is passed in the URLs of internal links. Your internal link URLs change while it is on."
       },
       {
         "type": "TEXT",
@@ -236,7 +236,7 @@ const OPT_IN_REGIONS = [
 // Google Consent Mode v2 extra settings. Defaults match Okito's CDN configuration.
 const consentModeSettings = {
   ads_data_redaction: data.adsDataRedaction === false ? false : true,
-  url_passthrough: data.urlPassthrough === false ? false : true
+  url_passthrough: data.urlPassthrough === true
 };
 if (data.developerId) {
   consentModeSettings['developer_id.' + data.developerId] = true;
@@ -793,6 +793,28 @@ scenarios:
     assertThat(capturedSettings['developer_id.dZGJiMm']).isEqualTo(true);
     assertThat(capturedSettings.ads_data_redaction).isEqualTo(true);
     assertThat(capturedSettings.url_passthrough).isEqualTo(true);
+- name: url_passthrough is off unless enabled
+  code: |-
+    const mockData = {
+      websiteKey: 'okito-abc123-def456-d',
+      notRequiredMode: 'granted',
+      waitForUpdate: 500,
+      adsDataRedaction: true,
+      developerId: 'dZGJiMm'
+    };
+
+    let capturedSettings = null;
+    mock('gtagSet', function(settings) {
+      capturedSettings = settings;
+    });
+    mock('setDefaultConsentState', function(state) {});
+    mock('queryPermission', function(permission, url) { return true; });
+    mock('injectScript', function(url, onSuccess, onFailure) { onSuccess(); });
+
+    runCode(mockData);
+
+    assertThat(capturedSettings.url_passthrough).isEqualTo(false);
+    assertThat(capturedSettings.ads_data_redaction).isEqualTo(true);
 - name: gtmOnFailure is called when inject_script permission is denied
   code: |-
     const mockData = {
