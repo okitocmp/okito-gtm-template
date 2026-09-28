@@ -1,6 +1,8 @@
 homepage: "https://okito.com"
 documentation: "https://app.okito.com"
 versions:
+  - sha: 4648de9386b06d4f90b5fff4b9c78ebd89a606dc
+    changeNotes: New "My banner uses IAB TCF" setting (off by default). When ticked, the tag adds the IAB TCF API stub (__tcfapi), so Google tags that start before the Okito script loads still find the TCF API and receive the TC string. Tick it if IAB TCF is on in your Okito dashboard.
   - sha: c6952d1ea4493c86bf05d8aa32e4e96b986b362e
     changeNotes: Pass ad click information through URLs (url_passthrough) is now off by default, matching Okito Banner Builder. Turn it on in the tag settings if you need it.
   - sha: e7151a1380f9a5f1ed53e244813c872f559bdc39
