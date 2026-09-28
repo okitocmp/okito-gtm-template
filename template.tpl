@@ -76,6 +76,14 @@ ___TEMPLATE_PARAMETERS___
     "help": "Leave unticked for the GDPR template: US visitors then start denied like other opt-in regions."
   },
   {
+    "type": "CHECKBOX",
+    "name": "tcfStub",
+    "checkboxText": "My banner uses IAB TCF",
+    "simpleValueType": true,
+    "defaultValue": false,
+    "help": "Tick if IAB TCF is on in the Okito dashboard. The tag then adds the IAB TCF API stub (__tcfapi), so Google tags that start before the Okito script loads still find the TCF API; their calls are answered once it has loaded. Leave unticked otherwise."
+  },
+  {
     "type": "SIMPLE_TABLE",
     "name": "regionDefaults",
     "displayName": "Region-specific defaults (optional)",
@@ -221,6 +229,8 @@ const gtagSet = require('gtagSet');
 const encodeUriComponent = require('encodeUriComponent');
 const makeNumber = require('makeNumber');
 const makeString = require('makeString');
+const copyFromWindow = require('copyFromWindow');
+const createArgumentsQueue = require('createArgumentsQueue');
 
 const websiteKey = data.websiteKey;
 const waitForUpdate = data.waitForUpdate ? makeNumber(data.waitForUpdate) : 500;
@@ -307,6 +317,13 @@ regionRows.forEach((entry) => {
   state.wait_for_update = allGranted ? 0 : waitForUpdate;
   setDefaultConsentState(state);
 });
+
+// IAB TCF stub: __tcfapi exists before any Google tag runs; calls are queued
+// in __okitoGtmTcfQueue and answered by the Okito script once it has loaded.
+// Another CMP's __tcfapi is left alone.
+if (data.tcfStub === true && typeof copyFromWindow('__tcfapi') === 'undefined') {
+  createArgumentsQueue('__tcfapi', '__okitoGtmTcfQueue');
+}
 
 // Load the Okito CMP script. It renders the banner (where required) and, on a
 // visitor's choice, calls gtag('consent','update', ...) which Tag Manager consumes.
@@ -621,6 +638,106 @@ ___WEB_PERMISSIONS___
       "isEditedByUser": true
     },
     "isRequired": true
+  },
+  {
+    "instance": {
+      "key": {
+        "publicId": "access_globals",
+        "versionId": "1"
+      },
+      "param": [
+        {
+          "key": "keys",
+          "value": {
+            "type": 2,
+            "listItem": [
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "key"
+                  },
+                  {
+                    "type": 1,
+                    "string": "read"
+                  },
+                  {
+                    "type": 1,
+                    "string": "write"
+                  },
+                  {
+                    "type": 1,
+                    "string": "execute"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "__tcfapi"
+                  },
+                  {
+                    "type": 8,
+                    "boolean": true
+                  },
+                  {
+                    "type": 8,
+                    "boolean": true
+                  },
+                  {
+                    "type": 8,
+                    "boolean": false
+                  }
+                ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "key"
+                  },
+                  {
+                    "type": 1,
+                    "string": "read"
+                  },
+                  {
+                    "type": 1,
+                    "string": "write"
+                  },
+                  {
+                    "type": 1,
+                    "string": "execute"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "__okitoGtmTcfQueue"
+                  },
+                  {
+                    "type": 8,
+                    "boolean": true
+                  },
+                  {
+                    "type": 8,
+                    "boolean": true
+                  },
+                  {
+                    "type": 8,
+                    "boolean": false
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "clientAnnotations": {
+      "isEditedByUser": true
+    },
+    "isRequired": true
   }
 ]
 
@@ -815,6 +932,35 @@ scenarios:
 
     assertThat(capturedSettings.url_passthrough).isEqualTo(false);
     assertThat(capturedSettings.ads_data_redaction).isEqualTo(true);
+- name: IAB TCF stub is added only when ticked and no __tcfapi exists
+  code: |-
+    const mockData = {
+      websiteKey: 'okito-abc123-def456-d',
+      notRequiredMode: 'granted',
+      waitForUpdate: 500,
+      adsDataRedaction: true,
+      developerId: 'dZGJiMm'
+    };
+    mock('setDefaultConsentState', function(state) {});
+    mock('gtagSet', function(settings) {});
+    mock('queryPermission', function(permission, url) { return true; });
+    mock('injectScript', function(url, onSuccess, onFailure) { onSuccess(); });
+
+    let queued = [];
+    mock('createArgumentsQueue', function(fnKey, arrayKey) { queued.push(fnKey + ':' + arrayKey); });
+
+    runCode(mockData);
+    assertThat(queued).isEqualTo([]);
+
+    mockData.tcfStub = true;
+    mock('copyFromWindow', function(key) { return undefined; });
+    runCode(mockData);
+    assertThat(queued).isEqualTo(['__tcfapi:__okitoGtmTcfQueue']);
+
+    queued = [];
+    mock('copyFromWindow', function(key) { return function() {}; });
+    runCode(mockData);
+    assertThat(queued).isEqualTo([]);
 - name: gtmOnFailure is called when inject_script permission is denied
   code: |-
     const mockData = {
