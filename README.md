@@ -18,6 +18,18 @@ What the tag does (same behaviour as the Okito CDN banner and head snippet):
   `consent update` right after it loads.
 - Sets `developer_id.dZGJiMm` (Okito's Google CMP developer ID),
   `ads_data_redaction` and, optionally, `url_passthrough`.
+- "My banner uses IAB TCF" (off by default) adds the IAB TCF API stub:
+  `__tcfapi` is created with `createArgumentsQueue` and queues its calls in
+  `window.__okitoGtmTcfQueue`, which the Okito script answers once it has
+  loaded (on sites without TCF it answers them "no consent" for GDPR visitors
+  and removes the stub). An existing `__tcfapi` is left alone. There is no
+  `__tcfapiLocator` iframe (the sandbox cannot add one).
+- "My banner shows the US State Laws notice (IAB GPP)" (off by default) adds
+  the IAB Global Privacy Platform API: `__gpp` is created with
+  `createArgumentsQueue` and queues its calls in `window.__okitoGtmGppQueue`,
+  which the Okito script answers once it has loaded (it also adds the
+  `__gppLocator` iframe). An existing `__gpp` is left alone. Leave it off
+  when the banner uses IAB TCF.
 - Loads `https://cdn.okito.com/js/<website key>`, which shows the banner (or
   not, per the site settings) and sends `consent update` / IAB TCF signals.
 

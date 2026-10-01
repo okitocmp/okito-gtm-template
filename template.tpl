@@ -84,6 +84,14 @@ ___TEMPLATE_PARAMETERS___
     "help": "Tick if IAB TCF is on in the Okito dashboard. The tag then adds the IAB TCF API stub (__tcfapi), so Google tags that start before the Okito script loads still find the TCF API; their calls are answered once it has loaded. Leave unticked otherwise."
   },
   {
+    "type": "CHECKBOX",
+    "name": "gppStub",
+    "checkboxText": "My banner shows the US State Laws notice (IAB GPP)",
+    "simpleValueType": true,
+    "defaultValue": false,
+    "help": "Tick if the banner uses the US State Laws template (or GDPR & US State Laws without IAB TCF). The tag then adds the IAB Global Privacy Platform API (__gpp), so ad tags that start before the Okito script loads still find it; their calls are answered once it has loaded. Leave unticked with IAB TCF."
+  },
+  {
     "type": "SIMPLE_TABLE",
     "name": "regionDefaults",
     "displayName": "Region-specific defaults (optional)",
@@ -240,7 +248,8 @@ const OPT_IN_REGIONS = [
   'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR',
   'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK',
   'SI', 'ES', 'SE', 'IS', 'LI', 'NO', 'GB', 'CH',
-  'TR', 'BR', 'CA', 'ZA', 'AU', 'SA', 'AR', 'AD', 'FO'
+  'TR', 'BR', 'CA', 'ZA', 'AU', 'SA', 'AR', 'AD', 'FO',
+  'KR', 'CN', 'IN'
 ];
 
 // Google Consent Mode v2 extra settings. Defaults match Okito's CDN configuration.
@@ -323,6 +332,13 @@ regionRows.forEach((entry) => {
 // Another CMP's __tcfapi is left alone.
 if (data.tcfStub === true && typeof copyFromWindow('__tcfapi') === 'undefined') {
   createArgumentsQueue('__tcfapi', '__okitoGtmTcfQueue');
+}
+
+// IAB GPP stub: __gpp exists before ad tags run; calls are queued in
+// __okitoGtmGppQueue and answered by the Okito script once it has loaded.
+// Another CMP's __gpp is left alone.
+if (data.gppStub === true && typeof copyFromWindow('__gpp') === 'undefined') {
+  createArgumentsQueue('__gpp', '__okitoGtmGppQueue');
 }
 
 // Load the Okito CMP script. It renders the banner (where required) and, on a
@@ -728,6 +744,84 @@ ___WEB_PERMISSIONS___
                     "boolean": false
                   }
                 ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "key"
+                  },
+                  {
+                    "type": 1,
+                    "string": "read"
+                  },
+                  {
+                    "type": 1,
+                    "string": "write"
+                  },
+                  {
+                    "type": 1,
+                    "string": "execute"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "__gpp"
+                  },
+                  {
+                    "type": 8,
+                    "boolean": true
+                  },
+                  {
+                    "type": 8,
+                    "boolean": true
+                  },
+                  {
+                    "type": 8,
+                    "boolean": false
+                  }
+                ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "key"
+                  },
+                  {
+                    "type": 1,
+                    "string": "read"
+                  },
+                  {
+                    "type": 1,
+                    "string": "write"
+                  },
+                  {
+                    "type": 1,
+                    "string": "execute"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "__okitoGtmGppQueue"
+                  },
+                  {
+                    "type": 8,
+                    "boolean": true
+                  },
+                  {
+                    "type": 8,
+                    "boolean": true
+                  },
+                  {
+                    "type": 8,
+                    "boolean": false
+                  }
+                ]
               }
             ]
           }
@@ -959,6 +1053,36 @@ scenarios:
 
     queued = [];
     mock('copyFromWindow', function(key) { return function() {}; });
+    runCode(mockData);
+    assertThat(queued).isEqualTo([]);
+- name: IAB GPP stub is added only when ticked and no __gpp exists
+  code: |-
+    const mockData = {
+      websiteKey: 'okito-abc123-def456-d',
+      notRequiredMode: 'granted',
+      usOptOut: true,
+      waitForUpdate: 500,
+      adsDataRedaction: true,
+      developerId: 'dZGJiMm'
+    };
+    mock('setDefaultConsentState', function(state) {});
+    mock('gtagSet', function(settings) {});
+    mock('queryPermission', function(permission, url) { return true; });
+    mock('injectScript', function(url, onSuccess, onFailure) { onSuccess(); });
+
+    let queued = [];
+    mock('createArgumentsQueue', function(fnKey, arrayKey) { queued.push(fnKey + ':' + arrayKey); });
+
+    runCode(mockData);
+    assertThat(queued).isEqualTo([]);
+
+    mockData.gppStub = true;
+    mock('copyFromWindow', function(key) { return undefined; });
+    runCode(mockData);
+    assertThat(queued).isEqualTo(['__gpp:__okitoGtmGppQueue']);
+
+    queued = [];
+    mock('copyFromWindow', function(key) { return key === '__gpp' ? function() {} : undefined; });
     runCode(mockData);
     assertThat(queued).isEqualTo([]);
 - name: gtmOnFailure is called when inject_script permission is denied
