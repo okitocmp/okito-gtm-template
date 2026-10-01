@@ -1,6 +1,8 @@
 homepage: "https://okito.com"
 documentation: "https://app.okito.com"
 versions:
+  - sha: 38ba1149a39d613d4f0ef250467b2634f15fd20c
+    changeNotes: New "My banner shows the US State Laws notice (IAB GPP)" setting (off by default) adds the IAB GPP API stub (__gpp) for sites with the US State Laws notice. South Korea, China and India now start with consent denied.
   - sha: 4648de9386b06d4f90b5fff4b9c78ebd89a606dc
     changeNotes: New "My banner uses IAB TCF" setting (off by default). When ticked, the tag adds the IAB TCF API stub (__tcfapi), so Google tags that start before the Okito script loads still find the TCF API and receive the TC string. Tick it if IAB TCF is on in your Okito dashboard.
   - sha: c6952d1ea4493c86bf05d8aa32e4e96b986b362e
